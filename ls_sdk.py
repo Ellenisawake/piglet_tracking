@@ -1,3 +1,5 @@
+import os
+import json
 from label_studio_sdk import Client
 # from label_studio_sdk.client import LabelStudio
 import time
@@ -15,8 +17,10 @@ def check_ls_sdk_connection():
 
 
 def export_all_frames_ls():
-    project_id = 15  # integer, get from url of the project, e.g., http://localhost:8080/projects/4/data?tab=8
-    save_dir = '/Users/jiangao/Documents/Work/QUBRF/Piglets/Data/labelstudio/annos'
+    # integer, get from url of the project, e.g., http://localhost:8080/projects/4/data?tab=8
+    project_id = 21  # 19 # 18  # 15
+    # save_dir = '/Users/jiangao/Documents/Work/QUBRF/Piglets/Data/labelstudio/annos'
+    save_dir = '/Users/jiangao/Documents/Work/QUBRF/Piglets/Data/labelstudio/export_check'
     # Connect to Label Studio
     ls = Client(url=LABEL_STUDIO_URL, api_key=API_KEY)
     # Get your project by ID
@@ -44,6 +48,29 @@ def export_all_frames_ls():
     print(f'Exported data saved to {export_file_path}')
 
 
+def separate_annotation_per_video(bulk_json_file, video_interest=None):
+    json_dir = os.path.dirname(bulk_json_file)
+    with open(bulk_json_file, 'r') as f:
+        annotations = json.load(f)  # tasks
+        for anno in annotations:
+            video_name = os.path.basename(anno['data']['video'])
+            video_name = video_name.split('.')[0]
+            if video_interest is not None and video_name != video_interest:
+                continue
+            save_json = os.path.join(json_dir, video_name + '.json')
+            with open(save_json, 'w') as fw:
+                json.dump(anno, fw, indent=4)
+            print(f'JSON for video saved as {save_json}')
+
+
 if __name__ == '__main__':
     # check_ls_sdk_connection()
     export_all_frames_ls()
+    # bulk_json_file = 'project-19-at-2025-07-08-13-18-9621f5eb.json'
+    # bulk_json_file = 'project-18-at-2025-07-07-16-30-5e2f1496.json'
+    # bulk_json_file = 'project-15-at-2025-07-10-09-16-0f731d41.json'
+    # video_interest = None  # 'ch12_20250109090000_003000'  #
+    # # save_dir = '/Users/jiangao/Documents/Work/QUBRF/Piglets/Data/labelstudio/annos'
+    # save_dir = '/Users/jiangao/Documents/Work/QUBRF/Piglets/Data/labelstudio/export_check'
+    # bulk_json_file = os.path.join(save_dir, bulk_json_file)
+    # separate_annotation_per_video(bulk_json_file, video_interest)

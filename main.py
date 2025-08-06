@@ -1,9 +1,11 @@
 import os
 import cv2
+import csv
 import json
 import math
 import argparse
 import numpy as np
+import glob
 import torch
 from segment_anything import SamPredictor, sam_model_registry
 
@@ -667,29 +669,43 @@ def lsobb_to_lsabb():
 
 
 def ls_json_2_mot_csv():
-    spec_frame = 250  # 900  # 500  # 1300  # 300
-    video_name = 'ch12_20250109090000_003000'
+    # translator = 30
+    # spec_frame = -1  # translator * 25  # 250  # 1  # 247#900  # 500  # 1300  # 300
+    # video_name = 'ch8_20250109093748_000000'  #'ch12_20250109090000_001700' # 'ch12_20250109090000_003000'  #
     img_w, img_h = 2688, 1520
+    videos = ['ch8_20250109093748_000000', 'ch12_20250109090000_001700', 'ch12_20250109090000_003000']
     data_dir = os.path.join(ROOT_DIR, 'WTData', 'Piglet', 'video_obb_annotations')
-    anno_json_file = os.path.join(data_dir, f'{video_name}.json')
-    # out_csv_file = os.path.join(data_dir, f'{video_name}.txt')
+    # anno_json_file = os.path.join(data_dir, f'{video_name}.json')
+    # # out_csv_file = os.path.join(data_dir, f'{video_name}.txt')
     vis_dir = os.path.join(ROOT_DIR, 'WTData', 'Results', '250617_lsobb2_mot')
-    out_csv_file = os.path.join(vis_dir, f'{video_name}_f{spec_frame}.txt')
-    # ls_io_utils.write_ls_video_export_json_into_mot_csv(anno_json_file, out_csv_file, img_w, img_h, obj=-1, max_frame=2)
-    ls_io_utils.write_ls_video_export_json_into_mot_csv(anno_json_file, out_csv_file, img_w, img_h,
-                                                        obj=-1, max_frame=-1, spec_frame=spec_frame)
+    # # out_csv_file = os.path.join(vis_dir, f'{video_name}_f{spec_frame}.txt')
+    # # out_csv_file = os.path.join(vis_dir, f'{video_name}_4corners.txt')
+    # out_csv_file = os.path.join(vis_dir, f'{video_name}_mot.txt')
+    # # ls_io_utils.write_ls_video_export_json_into_mot_csv(anno_json_file, out_csv_file, img_w, img_h, obj=-1, max_frame=2)
+    # # ls_io_utils.write_ls_video_export_json_into_mot_csv(anno_json_file, out_csv_file, img_w, img_h,
+    # #                                                     obj=-1, max_frame=-1, spec_frame=spec_frame)
+    # ls_io_utils.write_ls_video_export_json_into_mot_csv_fps25_to30(anno_json_file, out_csv_file, img_w, img_h)
+    # # draw_verify_mot_box(video_name, translator)
 
-import csv
-def draw_verify_mot_box():
-    frame_number = 300 # 900  # 500  # 1300  # 1
-    anno_frame = 250
-    video_name = 'ch12_20250109090000_003000'
-    image_file = os.path.join(ROOT_DIR, 'WTData', 'Piglet', 'Raw', f'{video_name}_{frame_number:04d}.png')
+    for video_name in videos:
+        anno_json_file = os.path.join(data_dir, f'{video_name}.json')
+        out_csv_file = os.path.join(vis_dir, f'{video_name}_mot.txt')
+        ls_io_utils.write_ls_video_export_json_into_mot_csv_fps25_to30(anno_json_file, out_csv_file, img_w, img_h)
+        print(f'Finished writing MOt GT for {video_name}')
+
+
+def draw_verify_mot_box(video_name, translator):
+    frame_number = translator * 30  #  300  # 1  # 900  # 500  # 1300  # 1
+    anno_frame = translator * 25  #  250  # 1  # 247#
+    # video_name = 'ch12_20250109090000_003000'  # 'ch8_20250109093748_000000'  #
+    image_file = os.path.join(ROOT_DIR, 'WTData/Piglet/Raw/extracted', f'{video_name}_{frame_number:04d}.png')
+    if not os.path.exists(image_file):
+        raise FileNotFoundError(image_file)
     # csv_file = os.path.join(ROOT_DIR, 'WTData', 'Piglet', 'video_obb_annotations', f'{video_name}.txt')
     vis_dir = os.path.join(ROOT_DIR, 'WTData', 'Results', '250617_lsobb2_mot')
     csv_file = os.path.join(vis_dir, f'{video_name}_f{anno_frame}.txt')
     os.makedirs(vis_dir, exist_ok=True)
-    vis_file = os.path.join(vis_dir, f'{video_name}_f{frame_number}_mot_box.png')
+    vis_file = os.path.join(vis_dir, f'{video_name}_f{frame_number}a{anno_frame}_mot_box.png')
     image = cv2.imread(image_file)
     with open(csv_file, 'r', newline='') as f:
         reader = csv.reader(f, delimiter=',', )
@@ -708,8 +724,11 @@ def draw_verify_mot_box():
                 #             color=(255, 255, 255), thickness=3)
                 # cv2.putText(image, str(id), (int(x0), int(y0)), cv2.FONT_HERSHEY_SIMPLEX, 1, color,
                 #             thickness=2)
+                # xtl = int(row[2])
+                # ytl = int(row[3])
+                # cv2.circle(image, (xtl, ytl), radius=8, color=color, thickness=-1)
                 x0, y0 = -1, -1
-                for k in range(2, 10, 2):
+                for k in range(2, 10, 2):  # (4, 12, 2):
                     x, y = int(float(row[k])), int(float(row[k+1]))
                     print(f'frame {frame_number} obj {id} {x} {y}')
                     cv2.circle(image, (x, y), radius=10, color=color, thickness=3)
@@ -722,6 +741,89 @@ def draw_verify_mot_box():
     cv2.putText(image, f'frame {frame_number}', (50, 1500), cv2.FONT_HERSHEY_SIMPLEX, 2,
                 color=(255, 255, 255), thickness=3)
     cv2.imwrite(vis_file, image)
+
+
+def draw_mot_box0618():
+    frame_number = 900  # 300
+    video_name = 'ch8_20250109093748_000000'  # 'ch12_20250109090000_003000'  #
+    image_file = os.path.join(ROOT_DIR, 'WTData/Piglet/Raw/extracted', f'{video_name}_{frame_number:04d}.png')
+    if not os.path.exists(image_file):
+        raise FileNotFoundError(image_file)
+    vis_dir = os.path.join(ROOT_DIR, 'WTData', 'Results', '250617_lsobb2_mot')
+    csv_file = os.path.join(vis_dir, f'{video_name}_mot.txt')
+    vis_file = os.path.join(vis_dir, f'{video_name}_f{frame_number}_mot_abb.png')
+    image = cv2.imread(image_file)
+    with open(csv_file, 'r', newline='') as f:
+        reader = csv.reader(f, delimiter=',', )
+        for row in reader:
+            frame = int(row[0])
+            if frame == frame_number:
+                id = int(row[1])
+                color = BOX_COLORS['p'+str(id)]
+                x0 = int(row[2])
+                y0 = int(row[3])
+                x1 = x0 + int(row[4])
+                y1 = y0 + int(row[5])
+                cv2.rectangle(image, (x0, y0), (x1, y1), color, thickness=3)
+    image = image[:, 500:1900, :]
+    cv2.putText(image, f'frame {frame_number}', (50, 1500), cv2.FONT_HERSHEY_SIMPLEX, 2,
+                color=(255, 255, 255), thickness=3)
+    cv2.imwrite(vis_file, image)
+
+
+def ls_json_to_mot_csv250623():
+    videos = ['ch12_20250109090000_000200', ]
+    img_w, img_h = 2688, 1520
+    data_dir = os.path.join(ROOT_DIR, 'WTData', 'Piglet', 'video_obb_annotations')
+    save_dir = os.path.join(ROOT_DIR, 'WTData', 'Dataset', 'Piglet2506')
+    for video_name in videos:
+        anno_json_file = os.path.join(data_dir, f'{video_name}.json')
+        out_csv_file = os.path.join(save_dir, f'{video_name}_mot.txt')
+        ls_io_utils.write_ls_video_export_json_into_mot_csv(anno_json_file, out_csv_file, img_w, img_h)
+        print(f'Finished writing MOt GT for {video_name}')
+
+
+def mot_csv_to_yolo_abb_250630():
+    splits = ['train', 'val', ]
+    video_name = 'ch12_20250109090000_000200'
+    img_w, img_h = 2688.0, 1520.0
+    data_dir = os.path.join(ROOT_DIR, 'WTData', 'Dataset', 'Piglet2506')
+    csv_file = os.path.join(data_dir, 'train', f'{video_name}_mot.txt')
+    mot_labels = np.loadtxt(csv_file, delimiter=',', dtype=int)
+    for split in splits:
+        image_dir = os.path.join(data_dir, 'detection', 'images', split)
+        label_dir = os.path.join(data_dir, 'detection', 'labels', split)
+        for file in sorted(glob.glob(os.path.join(image_dir, '*.jpg'))):
+            file_name = os.path.basename(file)
+            file_name = os.path.splitext(file_name)[0]
+            frame_id = int(file_name.split('_')[-1])
+            rows = mot_labels[mot_labels[:, 0] == frame_id]
+            label_file = os.path.join(label_dir, f'{file_name}.txt')
+            with open(label_file, 'w') as writer:
+                for row in rows:
+                    # MOT format (pixel):
+                    # <frame>, <id>, <bb_left>, <bb_top>, <bb_width>, <bb_height>, <conf>, <x>, <y>, <z>
+                    width, height = row[4], row[5]
+                    x_center, y_center = row[2] + width / 2., row[3] + height / 2.
+                    x_center, width = x_center / img_w, width / img_w
+                    y_center, height = y_center / img_h, height / img_h
+                    # YOLO format (percentage):
+                    # <class>, <x_center>, <y_center>, <width>, <height>
+                    writer.write(f'0\t{x_center:.6f}\t{y_center:.6f}\t{width:.6f}\t{height:.6f}\n')
+                    writer.flush()
+            if frame_id % 100 == 0:
+                print(f'Processed {frame_id}')
+
+
+def ls_json_to_yolo_obb():
+    # https://docs.ultralytics.com/datasets/obb/
+    videos = ['ch12_20250109090000_000200', ]
+    img_w, img_h = 2688, 1520
+    data_dir = os.path.join(ROOT_DIR, 'WTData', 'Piglet', 'video_obb_annotations')
+    save_dir = os.path.join(ROOT_DIR, 'WTData', 'Dataset', 'Piglet2506')
+    for video_name in videos:
+        anno_json_file = os.path.join(data_dir, f'{video_name}.json')
+
 
 
 if __name__ == '__main__':
@@ -745,4 +847,7 @@ if __name__ == '__main__':
     # verify_ls_cv2_coords()
     # structure_ls_export_json()
     ls_json_2_mot_csv()
-    draw_verify_mot_box()
+    # draw_verify_mot_box()
+    # draw_mot_box0618()
+    # ls_json_to_mot_csv250623()
+    # mot_csv_to_yolo250630()
